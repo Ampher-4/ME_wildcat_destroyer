@@ -1,5 +1,5 @@
 #linux only script
-from ultralytics import YOLO
+from ultralytics.models.yolo import YOLO
 import cv2
 import sys
 

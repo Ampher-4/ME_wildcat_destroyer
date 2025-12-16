@@ -1,9 +1,10 @@
 # cat_sentry.py
 # 单文件：YOLO 识别 + 舵机控制 + 爆闪 + 扫描逻辑
 import sys
+import os
 import time
 import cv2
-from ultralytics import YOLO
+from ultralytics.models.yolo import YOLO
 import RPi.GPIO as GPIO
 
 # =========================
@@ -46,11 +47,18 @@ SCAN_SPEED = 1       # 每帧移动多少°
 SCAN_MIN = 20        # 最左扫描角度
 SCAN_MAX = 160       # 最右扫描角度
 
+def AI_tick():
+    pass
 
 # =========================
 # 主检测与控制逻辑
 # =========================
-def run_sentry(camera_index=0):
+def run_sentry(camera_index=0, operatingmode=0):
+    """
+    params:
+        camera_index: 摄像头索引
+        operatingmode: 0 = auto, 1 = manual
+    """
     global scan_angle, scan_direction
 
     # 加载 YOLO
@@ -66,6 +74,8 @@ def run_sentry(camera_index=0):
 
     try:
         while True:
+
+            # AI tick
             ret, frame = cap.read()
             if not ret:
                 print("读取相机失败")
@@ -123,4 +133,12 @@ def run_sentry(camera_index=0):
 
 if __name__ == "__main__":
     cam = int(sys.argv[1]) if len(sys.argv) > 1 else 0
-    run_sentry(camera_index=cam)
+
+    #init the system
+    cfgfile = 'sentry.cfg'
+    operatingmode = 0
+    if os.path.exists(cfgfile):
+        with open(cfgfile, 'r') as f:
+            operatingmode = int(f.readline().strip())
+
+    run_sentry(camera_index=cam, operatingmode=operatingmode)
