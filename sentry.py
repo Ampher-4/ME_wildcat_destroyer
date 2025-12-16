@@ -78,10 +78,12 @@ def run_sentry(camera_index=0, operatingmode=0):
     try:
         while True:
             ret, frame = cap.read()
+            print("reading started --------- 11111")
             if not ret:
                 print("读取相机失败")
                 continue
 
+            print("eval started ---------- 2222222")
             # YOLO 推理（只检测猫）
             results = model(frame, classes=[15], conf=0.5)
             result = results[0]
