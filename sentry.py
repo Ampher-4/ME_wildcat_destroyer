@@ -70,46 +70,69 @@ def run_sentry(camera_index=0, operatingmode=0):
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
     cap.set(cv2.CAP_PROP_FPS, 10)
 
-    print("哨戒猫炮塔启动！Ctrl+C 退出...")
+    window_name = "Cat Sentry View"
+    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+
+    print("哨戒猫炮塔启动！按 q 或 Ctrl+C 退出...")
 
     try:
         while True:
-
-            # AI tick
             ret, frame = cap.read()
             if not ret:
                 print("读取相机失败")
                 continue
 
-            # YOLO 只检测猫
-            result = model(frame, classes=[15], conf=0.5)[0]
+            # YOLO 推理（只检测猫）
+            results = model(frame, classes=[15], conf=0.5)
+            result = results[0]
+
+            detected = False
 
             if len(result.boxes) > 0:
-                # 取最大置信度猫目标（一般只有一只）
+                # 只取第一个猫（你也可以换成最大面积）
                 box = result.boxes[0]
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
-                
+                conf = float(box.conf[0])
+
+                # 画检测框
+                cv2.rectangle(frame, (x1, y1), (x2, y2),
+                              (0, 255, 0), 2)
+                cv2.putText(
+                    frame,
+                    f"cat {conf:.2f}",
+                    (x1, y1 - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (0, 255, 0),
+                    2
+                )
+
                 # 计算猫中心
                 cat_x = (x1 + x2) // 2
                 frame_center = frame.shape[1] // 2
 
+                # 画中心线（调试非常有用）
+                cv2.line(frame,
+                         (frame_center, 0),
+                         (frame_center, frame.shape[0]),
+                         (255, 0, 0), 1)
+
                 # 偏差（像素差）
                 error_x = cat_x - frame_center
-
-                # 转成旋转角度校正（比例可调整）
-                correction = error_x * 0.05  # 每像素 0.05°（需自己调参）
+                correction = error_x * 0.05  # 需要你现场调参
 
                 # 更新云台角度
                 scan_angle -= correction
                 scan_angle = max(SCAN_MIN, min(SCAN_MAX, scan_angle))
                 set_servo_angle(scan_angle)
 
-                print(f"锁定猫！angle={scan_angle:.2f}°")
-
                 flash_led(times=1, interval=0.05)
+                detected = True
 
-            else:
-                # 没有检测到猫 → 扫描模式
+                print(f"锁定猫 angle={scan_angle:.2f}° error={error_x}")
+
+            if not detected:
+                # 扫描模式
                 scan_angle += SCAN_SPEED * scan_direction
                 if scan_angle >= SCAN_MAX:
                     scan_direction = -1
@@ -117,18 +140,25 @@ def run_sentry(camera_index=0, operatingmode=0):
                     scan_direction = 1
 
                 set_servo_angle(scan_angle)
-                print(f"扫描中... angle={scan_angle}")
+
+            # 显示画面
+            cv2.imshow(window_name, frame)
+
+            # 按 q 退出
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
 
             time.sleep(0.05)
 
     except KeyboardInterrupt:
-        pass
+        print("\n手动中断")
 
     finally:
         servo.stop()
         GPIO.cleanup()
         cap.release()
         cv2.destroyAllWindows()
+
 
 
 if __name__ == "__main__":
