@@ -62,7 +62,7 @@ def run_sentry(camera_index=0, operatingmode=0):
     global scan_angle, scan_direction
 
     # 加载 YOLO
-    model = YOLO("yolov8n.pt")
+    model = YOLO("yolov8n_ncnn_model")
 
     # 摄像头
     cap = cv2.VideoCapture(camera_index)
