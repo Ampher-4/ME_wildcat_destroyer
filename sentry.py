@@ -72,7 +72,7 @@ def AI_tick():
 # =========================
 # 主检测与控制逻辑
 # =========================
-def run_sentry(camera_index=0, operatingmode=0):
+def run_sentry(camera_index=0, operatingmode=0, cv2cap=None):
     """
     params:
         camera_index: 摄像头索引
@@ -81,9 +81,9 @@ def run_sentry(camera_index=0, operatingmode=0):
     global scan_angle, scan_direction
 
     # 加载 YOLO
-    model = YOLO("yolov8n.onnx")
+    model = YOLO("yolov8n_ncnn_model")
 
-    cvwindow = cv2.namedWindow("Sentry Cat Turret", cv2.WINDOW_NORMAL)
+    cv2.namedWindow("Sentry Cat Turret", cv2.WINDOW_NORMAL)
 
 
     print("哨戒猫炮塔启动！按 q 或 Ctrl+C 退出...")
@@ -159,6 +159,7 @@ def run_sentry(camera_index=0, operatingmode=0):
                 set_servo_angle(scan_angle)
 
 
+            cv2.imshow("Sentry Cat Turret", frame)
             # 按 q 退出
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
@@ -196,4 +197,4 @@ if __name__ == "__main__":
     t.start()
 
 
-    run_sentry(camera_index=cam, operatingmode=operatingmode)
+    run_sentry(camera_index=cam, operatingmode=operatingmode, cv2cap=cap)
