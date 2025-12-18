@@ -6,6 +6,25 @@ import time
 import cv2
 from ultralytics.models.yolo import YOLO
 import RPi.GPIO as GPIO
+import threading
+
+
+# =========================
+# vifeo thread
+# =========================
+latest_frame = None
+frame_lock = threading.Lock()
+running = True
+
+def camera_thread(cap):
+    global latest_frame, running
+    while running:
+        ret, frame = cap.read()
+        if not ret:
+            continue
+        with frame_lock:
+            latest_frame = frame
+
 
 # =========================
 # 舵机设置
@@ -64,24 +83,16 @@ def run_sentry(camera_index=0, operatingmode=0):
     # 加载 YOLO
     model = YOLO("yolov8n_ncnn_model")
 
-    # 摄像头
-    cap = cv2.VideoCapture(camera_index)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
-    cap.set(cv2.CAP_PROP_FPS, 10)
-
-    window_name = "Cat Sentry View"
-    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
 
     print("哨戒猫炮塔启动！按 q 或 Ctrl+C 退出...")
 
     try:
         while True:
-            ret, frame = cap.read()
-            print("reading started --------- 11111")
-            if not ret:
-                print("读取相机失败")
-                continue
+            with frame_lock:
+                if latest_frame is None:
+                    continue
+                frame = latest_frame.copy()
+
 
             print("eval started ---------- 2222222")
             # YOLO 推理（只检测猫）
@@ -96,28 +107,11 @@ def run_sentry(camera_index=0, operatingmode=0):
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
                 conf = float(box.conf[0])
 
-                # 画检测框
-                cv2.rectangle(frame, (x1, y1), (x2, y2),
-                              (0, 255, 0), 2)
-                cv2.putText(
-                    frame,
-                    f"cat {conf:.2f}",
-                    (x1, y1 - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.6,
-                    (0, 255, 0),
-                    2
-                )
 
                 # 计算猫中心
                 cat_x = (x1 + x2) // 2
                 frame_center = frame.shape[1] // 2
 
-                # 画中心线（调试非常有用）
-                cv2.line(frame,
-                         (frame_center, 0),
-                         (frame_center, frame.shape[0]),
-                         (255, 0, 0), 1)
 
                 # 偏差（像素差）
                 error_x = cat_x - frame_center
@@ -143,8 +137,6 @@ def run_sentry(camera_index=0, operatingmode=0):
 
                 set_servo_angle(scan_angle)
 
-            # 显示画面
-            cv2.imshow(window_name, frame)
 
             # 按 q 退出
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -172,5 +164,15 @@ if __name__ == "__main__":
     if os.path.exists(cfgfile):
         with open(cfgfile, 'r') as f:
             operatingmode = int(f.readline().strip())
+
+    cap = cv2.VideoCapture(cam)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 320)
+    cap.set(cv2.CAP_PROP_FPS, 10)
+
+    # 启动采集线程
+    t = threading.Thread(target=camera_thread, args=(cap,), daemon=True)
+    t.start()
+
 
     run_sentry(camera_index=cam, operatingmode=operatingmode)
