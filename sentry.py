@@ -83,6 +83,8 @@ def run_sentry(camera_index=0, operatingmode=0):
     # 加载 YOLO
     model = YOLO("yolov8n_ncnn_model")
 
+    cvwindow = cv2.namedWindow("Sentry Cat Turret", cv2.WINDOW_NORMAL)
+
 
     print("哨戒猫炮塔启动！按 q 或 Ctrl+C 退出...")
 
@@ -94,10 +96,12 @@ def run_sentry(camera_index=0, operatingmode=0):
                 frame = latest_frame.copy()
 
 
-            print("eval started ---------- 2222222")
             # YOLO 推理（只检测猫）
+            starttime = time.time()
             results = model(frame, classes=[15], conf=0.5)
             result = results[0]
+            starttime = time.time() - starttime
+            print(f"eval time: {starttime*1000:.1f} ms")
 
             detected = False
 
@@ -107,11 +111,28 @@ def run_sentry(camera_index=0, operatingmode=0):
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
                 conf = float(box.conf[0])
 
+                # cv2 debug
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                cv2.putText(
+                    frame,
+                    f"cat {conf:.2f}",
+                    (x1, y1 - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (0, 255, 0),
+                    2
+                )
+
 
                 # 计算猫中心
                 cat_x = (x1 + x2) // 2
                 frame_center = frame.shape[1] // 2
 
+                #cv2 debug
+                cv2.line(frame,
+                         (frame_center, 0),
+                         (frame_center, frame.shape[0]),
+                         (255, 0, 0), 1)
 
                 # 偏差（像素差）
                 error_x = cat_x - frame_center
