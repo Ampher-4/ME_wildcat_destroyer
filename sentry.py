@@ -81,7 +81,7 @@ def run_sentry(camera_index=0, operatingmode=0):
     global scan_angle, scan_direction
 
     # 加载 YOLO
-    model = YOLO("yolov8n_ncnn_model")
+    model = YOLO("yolov8n.onnx")
 
     cvwindow = cv2.namedWindow("Sentry Cat Turret", cv2.WINDOW_NORMAL)
 
